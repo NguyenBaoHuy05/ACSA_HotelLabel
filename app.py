@@ -5,31 +5,126 @@ import os
 import requests
 import re
 
-# Define standard aspects for Hotel domain
+# # Define standard aspects for Hotel domain
+# ASPECTS = [
+#     "ROOM#CLEANLINESS", "ROOM#DESIGN", "ROOM#COMFORT", "ROOM#AMENITIES", 
+#     "LOCATION#ACCESS", "LOCATION#SURROUNDING", "LOCATION#VIEW", 
+#     "SERVICE#STAFF", "SERVICE#HOUSEKEEPING", "SERVICE#MISCELLANEOUS", 
+#     "FACILITIES#GENERAL","FOOD&DRINK#GENERAL", "VALUE#GENERAL", "HOTEL#GENERAL"
+# ]
+# SENTIMENTS = ["None", "Positive", "Neutral", "Negative"]
+
+# # Aspect definitions (Vietnamese) for prompt context
+# ASPECT_DEFINITIONS = {
+#     "ROOM#CLEANLINESS":     "Độ sạch sẽ của phòng, ga giường, sàn, nhà vệ sinh.",
+#     "ROOM#DESIGN":          "Phong cách, bày trí, thẩm mỹ kiến trúc bên trong phòng.",
+#     "ROOM#COMFORT":         "Độ thoải mái (giường êm, cách âm, điều hòa, không gian rộng/hẹp).",
+#     "ROOM#AMENITIES":       "Vật dụng trong phòng (TV, tủ lạnh, máy sấy, âm đun, khăn, bàn chải).",
+#     "LOCATION#ACCESS":      "Vị trí dễ tìm, gần trung tâm, gần phương tiện công cộng.",
+#     "LOCATION#SURROUNDING": "Môi trường xung quanh (ồn ào/yên tĩnh, an ninh, gần quán xá).",
+#     "LOCATION#VIEW":        "Cảnh quan nhìn từ phòng hoặc khách sạn (view đẹp/xấu).",
+#     "SERVICE#STAFF":        "Thái độ, kỹ năng của nhân viên (lễ tân, phục vụ, bảo vệ), các thủ tục nhận phòng, trả phòng, support, ...",
+#     "SERVICE#HOUSEKEEPING": "Chất lượng và thái độ của dịch vụ dọn phòng.",
+#     "SERVICE#MISCELLANEOUS":"Dịch vụ cộng thêm (giặt ủi, đặt tour, đưa đón sân bay).",
+#     "FACILITIES#GENERAL":   "Tiện ích chung (thang máy, hồ bơi, gym, bãi xe, sảnh chờ, wifi khách sạn).",
+#     "FOOD&DRINK#GENERAL":   "Chất lượng, hương vị bữa sáng, nhà hàng, đồ uống.",
+#     "VALUE#GENERAL":        "Sự tương xứng giữa giá tiền và chất lượng nhận được.",
+#     "HOTEL#GENERAL":        "Đánh giá mức độ hài lòng về khách sạn (tổng thể, ý định quay lại, giới thiệu).",
+# }
+
 ASPECTS = [
-    "ROOM#CLEANLINESS", "ROOM#DESIGN", "ROOM#COMFORT", "ROOM#AMENITIES", 
-    "LOCATION#ACCESS", "LOCATION#SURROUNDING", "LOCATION#VIEW", 
-    "SERVICE#STAFF", "SERVICE#HOUSEKEEPING", "SERVICE#MISCELLANEOUS", 
-    "FACILITIES#GENERAL","FOOD&DRINK#GENERAL", "VALUE#GENERAL", "HOTEL#GENERAL"
+    "ROOM#CLEANLINESS",      
+    "ROOM#DESIGN",
+    "ROOM#COMFORT",
+    "ROOM#AMENITIES",
+    "LOCATION#ACCESS",
+    "LOCATION#SURROUNDING",  
+    "SERVICE#STAFF",
+    "SERVICE#MISCELLANEOUS", 
+    "FOOD&DRINK#GENERAL",
+    "VALUE#GENERAL",
+    "HOTEL#GENERAL"
 ]
 SENTIMENTS = ["None", "Positive", "Neutral", "Negative"]
 
-# Aspect definitions (Vietnamese) for prompt context
 ASPECT_DEFINITIONS = {
-    "ROOM#CLEANLINESS":     "Độ sạch sẽ của phòng, ga giường, sàn, nhà vệ sinh.",
-    "ROOM#DESIGN":          "Phong cách, bày trí, thẩm mỹ kiến trúc bên trong phòng.",
-    "ROOM#COMFORT":         "Độ thoải mái (giường êm, cách âm, điều hòa, không gian rộng/hẹp).",
-    "ROOM#AMENITIES":       "Vật dụng trong phòng (TV, tủ lạnh, máy sấy, âm đun, khăn, bàn chải).",
-    "LOCATION#ACCESS":      "Vị trí dễ tìm, gần trung tâm, gần phương tiện công cộng.",
-    "LOCATION#SURROUNDING": "Môi trường xung quanh (ồn ào/yên tĩnh, an ninh, gần quán xá).",
-    "LOCATION#VIEW":        "Cảnh quan nhìn từ phòng hoặc khách sạn (view đẹp/xấu).",
-    "SERVICE#STAFF":        "Thái độ, kỹ năng của nhân viên (lễ tân, phục vụ, bảo vệ), các thủ tục nhận phòng, trả phòng, support, ...",
-    "SERVICE#HOUSEKEEPING": "Chất lượng và thái độ của dịch vụ dọn phòng.",
-    "SERVICE#MISCELLANEOUS":"Dịch vụ cộng thêm (giặt ủi, đặt tour, đưa đón sân bay).",
-    "FACILITIES#GENERAL":   "Tiện ích chung (thang máy, hồ bơi, gym, bãi xe, sảnh chờ, wifi khách sạn).",
-    "FOOD&DRINK#GENERAL":   "Chất lượng, hương vị bữa sáng, nhà hàng, đồ uống.",
-    "VALUE#GENERAL":        "Sự tương xứng giữa giá tiền và chất lượng nhận được.",
-    "HOTEL#GENERAL":        "Đánh giá mức độ hài lòng về khách sạn (tổng thể, ý định quay lại, giới thiệu).",
+    "ROOM#CLEANLINESS": (
+        "Độ sạch sẽ của phòng và kết quả công việc dọn dẹp.\n"
+        "Bao gồm: ga giường, sàn nhà, nhà vệ sinh, mùi phòng, vết bẩn, côn trùng.\n"
+        "Cũng bao gồm: chất lượng & thái độ nhân viên housekeeping, tần suất dọn phòng, thay khăn/ga.\n"
+        "Ví dụ: 'Phòng rất sạch', 'Nhà vệ sinh có mùi', 'Nhân viên dọn phòng cẩu thả', "
+        "'Ga giường không được thay dù ở 3 ngày'."
+    ),
+    "ROOM#DESIGN": (
+        "Phong cách thẩm mỹ và bài trí không gian bên trong phòng.\n"
+        "Bao gồm: kiến trúc, màu sắc, nội thất, ánh sáng, cảm giác hiện đại/cũ kỹ.\n"
+        "Ví dụ: 'Phòng decor rất đẹp', 'Thiết kế cũ kỹ', 'Nội thất sang trọng', 'Ánh sáng phòng tối'."
+    ),
+    "ROOM#COMFORT": (
+        "Mức độ thoải mái khi sinh hoạt trong phòng.\n"
+        "Bao gồm: chất lượng giường/gối/nệm, cách âm, nhiệt độ điều hòa, diện tích phòng, độ yên tĩnh.\n"
+        "Ví dụ: 'Giường rất êm', 'Phòng cách âm kém', 'Điều hòa không mát', "
+        "'Phòng rộng rãi thoải mái', 'Ngủ ngon suốt đêm'."
+    ),
+    "ROOM#AMENITIES": (
+        "Các vật dụng và thiết bị được trang bị cố định bên trong phòng.\n"
+        "Bao gồm: TV, tủ lạnh, máy sấy tóc, ấm đun nước, két sắt, đồ dùng nhà vệ sinh "
+        "(dầu gội, xà phòng, bàn chải), khăn tắm, wifi trong phòng.\n"
+        "Không bao gồm: tiện ích dùng chung ngoài phòng (→ SERVICE#MISCELLANEOUS).\n"
+        "Ví dụ: 'Phòng có tủ lạnh mini tiện lợi', 'Không có máy sấy tóc', "
+        "'Wifi phòng chập chờn', 'Đồ dùng vệ sinh đầy đủ'."
+    ),
+    "LOCATION#ACCESS": (
+        "Vị trí và khả năng di chuyển từ khách sạn đến các điểm xung quanh.\n"
+        "Bao gồm: gần trung tâm, gần phương tiện công cộng, dễ tìm đường, thuận tiện đi lại.\n"
+        "Ví dụ: 'Gần chợ Bến Thành', 'Khó tìm lối vào', 'Gần bến xe buýt', "
+        "'Vị trí trung tâm rất tiện'."
+    ),
+    "LOCATION#SURROUNDING": (
+        "Môi trường và cảnh quan xung quanh khu vực khách sạn.\n"
+        "Bao gồm: mức độ ồn ào/yên tĩnh, an ninh khu vực, gần quán ăn/cửa hàng, "
+        "cảnh quan nhìn từ phòng hoặc ban công (view biển, view thành phố, view hồ bơi).\n"
+        "Ví dụ: 'Khu vực yên tĩnh', 'Gần nhiều quán ăn ngon', 'View biển tuyệt đẹp', "
+        "'Xung quanh ồn ào về đêm', 'An ninh tốt'."
+    ),
+    "SERVICE#STAFF": (
+        "Chất lượng phục vụ của đội ngũ nhân viên khách sạn.\n"
+        "Bao gồm: thái độ, sự nhiệt tình, kỹ năng giao tiếp của lễ tân, bảo vệ, phục vụ; "
+        "thủ tục check-in/check-out; hỗ trợ, tư vấn, giải quyết khiếu nại.\n"
+        "Không bao gồm: nhân viên dọn phòng (→ ROOM#CLEANLINESS).\n"
+        "Ví dụ: 'Nhân viên lễ tân rất thân thiện', 'Check-in nhanh chóng', "
+        "'Staff không biết tiếng Anh', 'Nhân viên hỗ trợ nhiệt tình'."
+    ),
+    "SERVICE#MISCELLANEOUS": (
+        "Các dịch vụ tiện ích và cơ sở vật chất chung của khách sạn (ngoài phòng).\n"
+        "Bao gồm tiện ích cố định: thang máy, hồ bơi, gym, bãi xe, sảnh chờ, wifi khu vực chung.\n"
+        "Bao gồm dịch vụ theo yêu cầu: giặt ủi, đặt tour, đưa đón sân bay, thuê xe.\n"
+        "Ví dụ: 'Hồ bơi sạch và rộng', 'Bãi xe miễn phí', 'Dịch vụ đưa đón sân bay tiện lợi', "
+        "'Wifi sảnh yếu', 'Gym có đầy đủ thiết bị'."
+    ),
+    "FOOD&DRINK#GENERAL": (
+        "Chất lượng đồ ăn và thức uống tại khách sạn.\n"
+        "Bao gồm: bữa sáng buffet, nhà hàng trong khách sạn, bar, đồ ăn nhẹ, "
+        "hương vị, sự đa dạng món ăn, chất lượng nguyên liệu.\n"
+        "Ví dụ: 'Buffet sáng phong phú', 'Đồ ăn nhạt nhẽo', "
+        "'Nhà hàng view đẹp', 'Cà phê buổi sáng rất ngon'."
+    ),
+    "VALUE#GENERAL": (
+        "Sự tương xứng giữa mức giá và chất lượng thực tế nhận được.\n"
+        "Bao gồm: đánh giá về giá phòng, khuyến mãi, so sánh giá với chất lượng.\n"
+        "Lưu ý: aspect này có thể trái chiều với HOTEL#GENERAL "
+        "(hài lòng về trải nghiệm nhưng thấy đắt, hoặc ngược lại).\n"
+        "Ví dụ: 'Giá hơi cao so với chất lượng', 'Rất đáng tiền', "
+        "'Tìm được deal tốt', 'Không xứng với mức giá bỏ ra'."
+    ),
+    "HOTEL#GENERAL": (
+        "Đánh giá tổng thể về trải nghiệm lưu trú tại khách sạn.\n"
+        "Bao gồm: mức độ hài lòng chung, ý định quay lại, sẵn sàng giới thiệu cho người khác, "
+        "cảm nhận tổng quát không thuộc aspect cụ thể nào.\n"
+        "Chỉ dùng khi câu đánh giá mang tính tổng kết, không thể gán vào aspect cụ thể.\n"
+        "Ví dụ: 'Sẽ quay lại lần sau', 'Rất hài lòng với chuyến nghỉ', "
+        "'Khách sạn tuyệt vời, recommend cho mọi người', 'Trải nghiệm tệ, không quay lại'."
+    ),
 }
     
 OLLAMA_URL = "http://localhost:11434/api/generate"
